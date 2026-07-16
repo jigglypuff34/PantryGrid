@@ -2,6 +2,11 @@
 
 PantryGrid is a hackathon MVP for finding food banks near any city, ZIP code, or address in the United States. It geocodes the search, looks up community-mapped food banks within a selected radius, and displays the results on an interactive map.
 
+# Authors
+
+Luis Ibarra, Aarav Mishra, Ant Hussein
+
+
 ## Run locally
 
 Requirements: Node.js 20.9 or newer and npm.
