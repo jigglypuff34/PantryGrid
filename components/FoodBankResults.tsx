@@ -33,6 +33,8 @@ export default function FoodBankResults({
   foodBanks,
   selectedId,
   onSelect,
+  onRequestRefill,
+  canRequestRefill,
   loading,
   error,
   hasSearched,
@@ -40,6 +42,8 @@ export default function FoodBankResults({
   foodBanks: FoodBankResult[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onRequestRefill: (bank: FoodBankResult) => void;
+  canRequestRefill: boolean;
   loading: boolean;
   error: string;
   hasSearched: boolean;
@@ -115,6 +119,17 @@ export default function FoodBankResults({
                 {bank.openingHours && <div><dt>Hours</dt><dd>{bank.openingHours}</dd></div>}
                 {website && <div><dt>Website</dt><dd><a href={website} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Visit website</a></dd></div>}
               </dl>
+              <button
+                type="button"
+                className="result-card-action"
+                disabled={!canRequestRefill}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRequestRefill(bank);
+                }}
+              >
+                Request refill
+              </button>
             </article>
           );
         })}

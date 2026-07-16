@@ -2,7 +2,7 @@
 
 import L from "leaflet";
 import { Circle, MapContainer, Marker, Popup, Polyline, TileLayer, useMap } from "react-leaflet";
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { FoodBank, SearchLocation, TruckRoute } from "@/lib/types";
 
 const searchIcon = L.divIcon({
@@ -11,6 +11,14 @@ const searchIcon = L.divIcon({
   iconSize: [30, 30],
   iconAnchor: [15, 15],
   popupAnchor: [0, -16],
+});
+
+const truckIcon = L.divIcon({
+  className: "custom-marker",
+  html: '<div class="truck-pin"><span>🚚</span></div>',
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+  popupAnchor: [0, -18],
 });
 
 function FitResults({ foodBanks, location, truckRoutes }: { foodBanks: FoodBank[]; location: SearchLocation | null; truckRoutes: TruckRoute[] }) {
@@ -69,13 +77,56 @@ function renderEstimatedSize(bank: FoodBank) {
   return `${bank.supplyPoundsThousands.toFixed(0)} thousand pounds`;
 }
 
-export default function PantryMap({ foodBanks, location, radiusMiles, truckRoutes, selectedId, onSelect }: {
+function AnimatedTruckMarker({ route }: { route: TruckRoute }) {
+  const [progressIndex, setProgressIndex] = useState(0);
+
+  const path = useMemo(() => route.path.length > 0 ? route.path : [route.origin, route.destination], [route]);
+
+  useEffect(() => {
+    setProgressIndex(0);
+  }, [route.id]);
+
+  useEffect(() => {
+    if (path.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setProgressIndex((currentIndex) => (currentIndex >= path.length - 1 ? currentIndex : currentIndex + 1));
+    }, 70);
+    return () => window.clearInterval(timer);
+  }, [path]);
+
+  const currentPoint = path[Math.min(progressIndex, path.length - 1)] ?? route.origin;
+
+  return (
+    <Marker position={[currentPoint.latitude, currentPoint.longitude]} icon={truckIcon}>
+      <Popup>
+        <div className="popup-content">
+          <strong>Truck dispatched</strong>
+          <span>{route.destination.name ?? "Nearest 85%+ bank"}</span>
+          <span>{route.distanceMiles.toFixed(1)} mi route</span>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
+export default function PantryMap({
+  foodBanks,
+  location,
+  radiusMiles,
+  truckRoutes,
+  selectedId,
+  onSelect,
+  onGenerateTruckRoute,
+  canGenerateTruckRoute,
+}: {
   foodBanks: FoodBank[];
   location: SearchLocation | null;
   radiusMiles: number;
   truckRoutes: TruckRoute[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onGenerateTruckRoute: () => void;
+  canGenerateTruckRoute: boolean;
 }) {
   const markerRefs = useRef(new Map<string, L.Marker>());
 
@@ -95,16 +146,32 @@ export default function PantryMap({ foodBanks, location, radiusMiles, truckRoute
             pathOptions={{ color: "#297c70", weight: 2, fillColor: "#55a99b", fillOpacity: 0.08 }}
           />
           <Marker position={[location.latitude, location.longitude]} icon={searchIcon}>
-            <Popup><strong>Searched location</strong><br />{location.displayName}</Popup>
+            <Popup>
+              <div className="popup-content">
+                <strong>Searched location</strong>
+                <span>{location.displayName}</span>
+                <button
+                  type="button"
+                  className="popup-action"
+                  disabled={!canGenerateTruckRoute}
+                  onClick={onGenerateTruckRoute}
+                >
+                  Request refill
+                </button>
+              </div>
+            </Popup>
           </Marker>
         </>
       )}
       {truckRoutes.map((route) => (
-        <Polyline
-          key={route.id}
-          positions={route.path.map((point) => [point.latitude, point.longitude] as [number, number])}
-          pathOptions={{ color: "#d46c24", weight: 4, opacity: 0.9, dashArray: "8 10" }}
-        />
+        <Fragment key={route.id}>
+          <Polyline
+            key={`${route.id}:line`}
+            positions={route.path.map((point) => [point.latitude, point.longitude] as [number, number])}
+            pathOptions={{ color: "#d46c24", weight: 4, opacity: 0.9, dashArray: "8 10" }}
+          />
+          <AnimatedTruckMarker route={route} />
+        </Fragment>
       ))}
       {foodBanks.map((bank) => {
         const website = bank.website ? safeWebsiteUrl(bank.website) : null;
