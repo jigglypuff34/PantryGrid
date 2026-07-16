@@ -43,6 +43,7 @@ export function normalizeFoodBanks(elements: OverpassElement[]): FoodBank[] {
       phone: tags.phone || tags["contact:phone"],
       website: tags.website || tags["contact:website"],
       openingHours: tags.opening_hours,
+      supplyLevel: tags.supply_level || tags["supply:level"] || tags.supply || tags["food_bank:supply_level"],
     });
   }
 

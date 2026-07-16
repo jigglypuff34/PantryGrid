@@ -6,7 +6,7 @@ import type { FoodBank } from "@/lib/types";
 
 const USER_AGENT = "PantryGrid-Hackathon-MVP/1.0 (+https://github.com/pantrygrid)";
 const ALLOWED_RADII = new Set([25, 50, 75]);
-const FOOD_BANK_CACHE_SCHEMA = "v2";
+const FOOD_BANK_CACHE_SCHEMA = "v3";
 const FOOD_BANK_TTL_SECONDS = 7 * 24 * 60 * 60;
 const MAX_IN_FLIGHT = 100;
 const OVERPASS_ENDPOINTS = [

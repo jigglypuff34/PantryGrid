@@ -83,10 +83,14 @@ export default function FoodBankResults({
             >
               <div className="result-card-title">
                 <h3>{bank.name}</h3>
-                <span>{bank.distanceMiles.toFixed(1)} mi</span>
+                <div className="result-card-badges">
+                  {bank.supplyLevel && <span className="supply-pill">{bank.supplyLevel}</span>}
+                  <span>{bank.distanceMiles.toFixed(1)} mi</span>
+                </div>
               </div>
               <dl>
                 {bank.address && <div><dt>Address</dt><dd>{bank.address}</dd></div>}
+                {bank.supplyLevel && <div><dt>Supply</dt><dd>{bank.supplyLevel}</dd></div>}
                 {bank.phone && <div><dt>Phone</dt><dd><a href={`tel:${bank.phone}`} onClick={(event) => event.stopPropagation()}>{bank.phone}</a></dd></div>}
                 {bank.openingHours && <div><dt>Hours</dt><dd>{bank.openingHours}</dd></div>}
                 {website && <div><dt>Website</dt><dd><a href={website} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Visit website</a></dd></div>}
