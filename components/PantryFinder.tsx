@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { FormEvent, useMemo, useState } from "react";
-import type { FoodBank, SearchLocation } from "@/lib/types";
+import type { FoodBank, FoodBankInventory, SearchLocation } from "@/lib/types";
 import { distanceInMiles } from "@/lib/distance";
 import FoodBankResults, { type FoodBankResult } from "./FoodBankResults";
 
@@ -11,15 +11,27 @@ const PantryMap = dynamic(() => import("./PantryMap"), {
   loading: () => <div className="map-loading">Loading map…</div>,
 });
 
+type FoodBankSearchResponse = {
+  foodBanks: FoodBank[];
+  total: number;
+  truncated: boolean;
+  error?: string;
+};
+
 export default function PantryFinder() {
   const [query, setQuery] = useState("");
   const [radius, setRadius] = useState(75);
   const [foodBanks, setFoodBanks] = useState<FoodBank[]>([]);
+  const [resultTotal, setResultTotal] = useState(0);
+  const [resultsTruncated, setResultsTruncated] = useState(false);
   const [location, setLocation] = useState<SearchLocation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [inventories, setInventories] = useState<Record<string, FoodBankInventory>>({});
+  const [inventoryLoadingIds, setInventoryLoadingIds] = useState<string[]>([]);
+  const [inventoryErrors, setInventoryErrors] = useState<Record<string, string>>({});
 
   const sortedFoodBanks = useMemo<FoodBankResult[]>(() => {
     if (!location) return [];
@@ -27,6 +39,27 @@ export default function PantryFinder() {
       .map((bank) => ({ ...bank, distanceMiles: distanceInMiles(location, bank) }))
       .sort((first, second) => first.distanceMiles - second.distanceMiles);
   }, [foodBanks, location]);
+
+  async function selectBank(id: string) {
+    setSelectedId(id);
+    if (inventories[id] || inventoryLoadingIds.includes(id)) return;
+
+    setInventoryLoadingIds((current) => [...current, id]);
+    setInventoryErrors((current) => ({ ...current, [id]: "" }));
+    try {
+      const response = await fetch(`/api/food-banks/${encodeURIComponent(id)}/inventory`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Inventory lookup failed.");
+      setInventories((current) => ({ ...current, [id]: data }));
+    } catch (inventoryError) {
+      setInventoryErrors((current) => ({
+        ...current,
+        [id]: inventoryError instanceof Error ? inventoryError.message : "Inventory lookup failed.",
+      }));
+    } finally {
+      setInventoryLoadingIds((current) => current.filter((candidate) => candidate !== id));
+    }
+  }
 
   async function search(event: FormEvent) {
     event.preventDefault();
@@ -40,6 +73,8 @@ export default function PantryFinder() {
     setError("");
     setHasSearched(false);
     setSelectedId(null);
+    setInventories({});
+    setInventoryErrors({});
 
     try {
       const geocodeResponse = await fetch(`/api/geocode?q=${encodeURIComponent(trimmedQuery)}`);
@@ -54,18 +89,26 @@ export default function PantryFinder() {
         radius: String(radius),
       });
       const foodBankResponse = await fetch(`/api/food-banks?${params}`);
-      const foodBankData = await foodBankResponse.json();
+      const foodBankData: FoodBankSearchResponse = await foodBankResponse.json();
       if (!foodBankResponse.ok) throw new Error(foodBankData.error || "Food-bank lookup failed.");
 
       setFoodBanks(foodBankData.foodBanks);
+      setResultTotal(foodBankData.total);
+      setResultsTruncated(foodBankData.truncated);
       setHasSearched(true);
     } catch (searchError) {
       setFoodBanks([]);
+      setResultTotal(0);
+      setResultsTruncated(false);
       setError(searchError instanceof Error ? searchError.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   }
+
+  const resultSummary = resultsTruncated
+    ? `Showing the closest ${foodBanks.length} of ${resultTotal} food banks`
+    : `${resultTotal} food ${resultTotal === 1 ? "bank" : "banks"} found`;
 
   return (
     <main>
@@ -74,7 +117,7 @@ export default function PantryFinder() {
           <div className="brand-mark" aria-hidden="true"><span /><span /><span /><span /></div>
           <h1>PantryGrid</h1>
         </div>
-        <p>Find nearby food banks and food pantries using community map data.</p>
+        <p>Explore U.S. food banks, organizational size, and simulated inventory from the PantryGrid database.</p>
 
         <form className="search-panel" onSubmit={search}>
           <label className="location-field">
@@ -114,14 +157,14 @@ export default function PantryFinder() {
       <section className="map-section" aria-label="Food bank search results">
         <div className="results-bar">
           <div>
-            <strong>{loading ? "Searching nearby…" : hasSearched ? `${foodBanks.length} food ${foodBanks.length === 1 ? "bank" : "banks"} found` : "Explore nearby resources"}</strong>
+            <strong>{loading ? "Searching the database…" : hasSearched ? resultSummary : "Explore nearby resources"}</strong>
             <span>{location && hasSearched ? `Within ${radius} miles of ${location.displayName.split(",").slice(0, 2).join(",")}` : "Search any U.S. location to begin"}</span>
           </div>
-          <span className="data-label">OpenStreetMap data</span>
+          <span className="data-label">IRS/NCCS database</span>
         </div>
 
         <span id="search-status" className="sr-only" aria-live="polite">
-          {loading ? "Loading food banks" : error || (hasSearched ? `${foodBanks.length} food banks found` : "")}
+          {loading ? "Loading food banks" : error || (hasSearched ? resultSummary : "")}
         </span>
 
         <div className="map-results-layout">
@@ -130,12 +173,16 @@ export default function PantryFinder() {
             location={location}
             radiusMiles={radius}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={selectBank}
           />
           <FoodBankResults
             foodBanks={sortedFoodBanks}
+            total={resultTotal}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={selectBank}
+            inventories={inventories}
+            inventoryLoadingIds={inventoryLoadingIds}
+            inventoryErrors={inventoryErrors}
             loading={loading}
             error={error}
             hasSearched={hasSearched}
@@ -143,7 +190,7 @@ export default function PantryFinder() {
         </div>
       </section>
 
-      <footer>PantryGrid is a prototype. Always confirm hours and services directly with the organization.</footer>
+      <footer>Organization details come from IRS/NCCS data. Inventory is simulated from the 2,500-item catalog and is not real-time availability.</footer>
     </main>
   );
 }

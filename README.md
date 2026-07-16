@@ -1,6 +1,6 @@
 # PantryGrid
 
-PantryGrid is a hackathon MVP for finding food banks near any city, ZIP code, or address in the United States. It geocodes the search, looks up community-mapped food banks within a selected radius, and displays the results on an interactive map.
+PantryGrid is a hackathon MVP for finding food banks near any city, ZIP code, or address in the United States. It geocodes the search, looks up nearby organizations in a checked-in national database, and displays organization details and simulated food inventory on an interactive map.
 
 ## Run locally
 
@@ -21,20 +21,27 @@ npm start
 ## Data services
 
 - [OpenStreetMap Nominatim](https://nominatim.org/) converts a U.S. location search to coordinates.
-- [OpenStreetMap Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) returns nearby features tagged `social_facility=food_bank`.
 - [OpenStreetMap tiles](https://www.openstreetmap.org/) provide the basemap through Leaflet.
+- `data/food-banks.json` contains 7,026 IRS/NCCS NTEE K31 food-bank and pantry records.
+- `data/food-items.json` contains a 2,500-item catalog used for simulated inventories.
 
-All Nominatim and Overpass requests run through server-side Next.js API routes. The browser never calls those services directly.
+Location lookup and database queries run through server-side Next.js API routes. Selecting a bank calls `/api/food-banks/[id]/inventory`, which creates a deterministic random assortment scaled by the bank's size classification. Large banks receive more distinct items and units than Medium, Small, or Unknown-size banks.
+
+To regenerate the runtime JSON after changing the CSV sources:
+
+```bash
+node scripts/generate-data.mjs
+```
 
 ## Important limitations
 
-OpenStreetMap is community-maintained, so food-bank listings, hours, and contact details may be missing or out of date. PantryGrid must not be treated as an authoritative emergency-services directory. Confirm availability directly with each organization.
+The directory is based on IRS/NCCS nonprofit records, not a real-time service-location feed. Records may be historical, may represent legal entities instead of individual distribution sites, and do not include verified hours or contact details. PantryGrid must not be treated as an authoritative emergency-services directory.
 
-The public APIs used here are appropriate for a prototype. A production version would need caching, rate limiting, stronger data sources, and its own maintained facility database.
+Inventory is simulated from the catalog for demonstration purposes and does not represent actual availability. A production version would need verified location data, real inventory feeds, caching, and rate limiting.
 
 ## Local catalog database
 
-The prototype includes a local SQLite database with a food-item catalog and a U.S. food-bank master directory. It contains reference data only; food items are not yet assigned to individual food banks and no quantities are simulated.
+The branch also includes a local SQLite catalog and import scripts. The frontend runtime uses the generated JSON assets described above, while the SQLite file provides a queryable local copy of the reference data.
 
 Rebuild the catalog from the source workbook with Python 3:
 

@@ -37,15 +37,6 @@ function FitResults({ foodBanks, location }: { foodBanks: FoodBank[]; location: 
   return null;
 }
 
-function safeWebsiteUrl(website: string): string | null {
-  try {
-    const url = new URL(website.startsWith("http") ? website : `https://${website}`);
-    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
 export default function PantryMap({ foodBanks, location, radiusMiles, selectedId, onSelect }: {
   foodBanks: FoodBank[];
   location: SearchLocation | null;
@@ -76,7 +67,6 @@ export default function PantryMap({ foodBanks, location, radiusMiles, selectedId
         </>
       )}
       {foodBanks.map((bank) => {
-        const website = bank.website ? safeWebsiteUrl(bank.website) : null;
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${bank.latitude},${bank.longitude}`;
         return (
           <Marker
@@ -92,11 +82,12 @@ export default function PantryMap({ foodBanks, location, radiusMiles, selectedId
             <Popup>
               <div className="popup-content">
                 <strong>{bank.name}</strong>
-                {bank.address && <span>{bank.address}</span>}
-                {bank.phone && <a href={`tel:${bank.phone}`}>{bank.phone}</a>}
-                {bank.openingHours && <span><b>Hours:</b> {bank.openingHours}</span>}
+                <span>{bank.address}</span>
+                <span><b>Size:</b> {bank.size}</span>
+                <span><b>EIN:</b> {bank.ein}</span>
+                <span className="popup-inventory-hint">Select to view simulated inventory</span>
                 <div className="popup-links">
-                  {website && <a href={website} target="_blank" rel="noreferrer">Website</a>}
+                  <a href={bank.sourceUrl} target="_blank" rel="noreferrer">Data source</a>
                   <a href={mapsUrl} target="_blank" rel="noreferrer">Open in Maps</a>
                 </div>
               </div>
