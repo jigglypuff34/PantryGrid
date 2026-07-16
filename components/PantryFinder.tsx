@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { FormEvent, useMemo, useState } from "react";
-import type { FoodBank, SearchLocation } from "@/lib/types";
+import type { FoodBank, SearchLocation, TruckRoute } from "@/lib/types";
 import { distanceInMiles } from "@/lib/distance";
+import { buildNearestTruckRoute } from "@/lib/simulation";
 import FoodBankResults, { type FoodBankResult } from "./FoodBankResults";
 
 const PantryMap = dynamic(() => import("./PantryMap"), {
@@ -20,6 +21,7 @@ export default function PantryFinder() {
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [truckRoutes, setTruckRoutes] = useState<TruckRoute[]>([]);
 
   const sortedFoodBanks = useMemo<FoodBankResult[]>(() => {
     if (!location) return [];
@@ -27,6 +29,24 @@ export default function PantryFinder() {
       .map((bank) => ({ ...bank, distanceMiles: distanceInMiles(location, bank) }))
       .sort((first, second) => first.distanceMiles - second.distanceMiles);
   }, [foodBanks, location]);
+
+  const selectedFoodBank = useMemo(() => {
+    if (!selectedId) return null;
+    return foodBanks.find((bank) => bank.id === selectedId) ?? null;
+  }, [foodBanks, selectedId]);
+
+  const truckRouteTarget = useMemo(() => {
+    if (selectedFoodBank) return selectedFoodBank;
+    if (location) {
+      return {
+        id: `location:${location.latitude.toFixed(4)},${location.longitude.toFixed(4)}`,
+        name: location.displayName.split(",")[0] || "Selected location",
+        latitude: location.latitude,
+        longitude: location.longitude,
+      };
+    }
+    return null;
+  }, [location, selectedFoodBank]);
 
   async function search(event: FormEvent) {
     event.preventDefault();
@@ -40,6 +60,7 @@ export default function PantryFinder() {
     setError("");
     setHasSearched(false);
     setSelectedId(null);
+    setTruckRoutes([]);
 
     try {
       const geocodeResponse = await fetch(`/api/geocode?q=${encodeURIComponent(trimmedQuery)}`);
@@ -115,9 +136,23 @@ export default function PantryFinder() {
         <div className="results-bar">
           <div>
             <strong>{loading ? "Searching nearby…" : hasSearched ? `${foodBanks.length} food ${foodBanks.length === 1 ? "bank" : "banks"} found` : "Explore nearby resources"}</strong>
-            <span>{location && hasSearched ? `Within ${radius} miles of ${location.displayName.split(",").slice(0, 2).join(",")}` : "Search any U.S. location to begin"}</span>
+            <span>{location && hasSearched ? `Within ${radius} miles of ${location.displayName.split(",").slice(0, 2).join(",")}${truckRoutes.length ? ` · ${truckRoutes.length} truck ${truckRoutes.length === 1 ? "route" : "routes"} active` : ""}` : "Search any U.S. location to begin"}</span>
           </div>
-          <span className="data-label">OpenStreetMap data</span>
+          <div className="bar-actions">
+            <button
+              type="button"
+              className="simulate-button"
+              disabled={loading || !hasSearched || foodBanks.length < 2 || !truckRouteTarget}
+              onClick={() => {
+                if (!truckRouteTarget) return;
+                const route = buildNearestTruckRoute(foodBanks, truckRouteTarget);
+                setTruckRoutes(route ? [route] : []);
+              }}
+            >
+              Simulate truck route
+            </button>
+            <span className="data-label">OpenStreetMap data</span>
+          </div>
         </div>
 
         <span id="search-status" className="sr-only" aria-live="polite">
@@ -129,6 +164,7 @@ export default function PantryFinder() {
             foodBanks={sortedFoodBanks}
             location={location}
             radiusMiles={radius}
+            truckRoutes={truckRoutes}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />

@@ -7,10 +7,29 @@ export type FoodBank = {
   phone?: string;
   website?: string;
   openingHours?: string;
+  supplyPoundsThousands?: number;
+  supplyPercent?: number;
+  supplyLevel?: string;
 };
 
 export type SearchLocation = {
   latitude: number;
   longitude: number;
   displayName: string;
+};
+
+export type RoutePoint = {
+  id?: string;
+  name?: string;
+  latitude: number;
+  longitude: number;
+  supplyLevel?: string;
+};
+
+export type TruckRoute = {
+  id: string;
+  origin: RoutePoint;
+  destination: RoutePoint;
+  distanceMiles: number;
+  path: RoutePoint[];
 };
