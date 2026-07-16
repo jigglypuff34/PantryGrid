@@ -48,6 +48,19 @@ function safeWebsiteUrl(website: string): string | null {
   }
 }
 
+function getSupplyTone(bank: FoodBank): "full" | "empty" | "mid" | "unknown" {
+  if (bank.supplyLevel === "empty" || bank.supplyPercent === 0) return "empty";
+  if (bank.supplyLevel === "full" || (typeof bank.supplyPercent === "number" && bank.supplyPercent >= 80)) return "full";
+  if (typeof bank.supplyPercent === "number" || bank.supplyLevel) return "mid";
+  return "unknown";
+}
+
+function renderSupplyLabel(bank: FoodBank) {
+  if (typeof bank.supplyPercent === "number" && bank.supplyLevel) return `${bank.supplyPercent}% ${bank.supplyLevel}`;
+  if (typeof bank.supplyPercent === "number") return `${bank.supplyPercent}%`;
+  return bank.supplyLevel ?? "unknown";
+}
+
 export default function PantryMap({ foodBanks, location, radiusMiles, truckRoutes, selectedId, onSelect }: {
   foodBanks: FoodBank[];
   location: SearchLocation | null;
@@ -103,7 +116,12 @@ export default function PantryMap({ foodBanks, location, radiusMiles, truckRoute
               <div className="popup-content">
                 <strong>{bank.name}</strong>
                 {bank.address && <span>{bank.address}</span>}
-                {bank.supplyLevel && <span><b>Supply:</b> {bank.supplyLevel}</span>}
+                {(bank.supplyLevel || typeof bank.supplyPercent === "number") && (
+                  <span className={`popup-supply supply-${getSupplyTone(bank)}`}>
+                    <span className="supply-heart" aria-hidden="true">♥</span>
+                    <b>Supply:</b> {renderSupplyLabel(bank)}
+                  </span>
+                )}
                 {bank.phone && <a href={`tel:${bank.phone}`}>{bank.phone}</a>}
                 {bank.openingHours && <span><b>Hours:</b> {bank.openingHours}</span>}
                 <div className="popup-links">

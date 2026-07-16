@@ -5,6 +5,21 @@ import type { FoodBank } from "@/lib/types";
 
 export type FoodBankResult = FoodBank & { distanceMiles: number };
 
+function getSupplyTone(bank: FoodBank): "full" | "empty" | "mid" | "unknown" {
+  if (bank.supplyLevel === "empty" || bank.supplyPercent === 0) return "empty";
+  if (bank.supplyLevel === "full" || (typeof bank.supplyPercent === "number" && bank.supplyPercent >= 80)) return "full";
+  if (typeof bank.supplyPercent === "number" || bank.supplyLevel) return "mid";
+  return "unknown";
+}
+
+function renderSupplyLabel(bank: FoodBank) {
+  if (typeof bank.supplyPercent === "number" && bank.supplyLevel) {
+    return `${bank.supplyPercent}% ${bank.supplyLevel}`;
+  }
+  if (typeof bank.supplyPercent === "number") return `${bank.supplyPercent}%`;
+  return bank.supplyLevel ?? "unknown";
+}
+
 function safeWebsiteUrl(website: string): string | null {
   try {
     const url = new URL(website.startsWith("http") ? website : `https://${website}`);
@@ -84,13 +99,18 @@ export default function FoodBankResults({
               <div className="result-card-title">
                 <h3>{bank.name}</h3>
                 <div className="result-card-badges">
-                  {bank.supplyLevel && <span className="supply-pill">{bank.supplyLevel}</span>}
+                  {(bank.supplyLevel || typeof bank.supplyPercent === "number") && (
+                    <span className={`supply-pill supply-${getSupplyTone(bank)}`}>
+                      <span className="supply-heart" aria-hidden="true">♥</span>
+                      {renderSupplyLabel(bank)}
+                    </span>
+                  )}
                   <span>{bank.distanceMiles.toFixed(1)} mi</span>
                 </div>
               </div>
               <dl>
                 {bank.address && <div><dt>Address</dt><dd>{bank.address}</dd></div>}
-                {bank.supplyLevel && <div><dt>Supply</dt><dd>{bank.supplyLevel}</dd></div>}
+                {(bank.supplyLevel || typeof bank.supplyPercent === "number") && <div><dt>Supply</dt><dd>{renderSupplyLabel(bank)}</dd></div>}
                 {bank.phone && <div><dt>Phone</dt><dd><a href={`tel:${bank.phone}`} onClick={(event) => event.stopPropagation()}>{bank.phone}</a></dd></div>}
                 {bank.openingHours && <div><dt>Hours</dt><dd>{bank.openingHours}</dd></div>}
                 {website && <div><dt>Website</dt><dd><a href={website} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>Visit website</a></dd></div>}

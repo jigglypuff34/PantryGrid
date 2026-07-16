@@ -20,6 +20,32 @@ function buildAddress(tags: OsmTags): string | undefined {
   return [street, locality].filter(Boolean).join(", ") || undefined;
 }
 
+function normalizeSupplyPercent(rawValue?: string): number | undefined {
+  if (!rawValue) return undefined;
+
+  const numericValue = Number(rawValue.replace(/[^\d.]/g, ""));
+  if (Number.isFinite(numericValue)) {
+    return Math.max(0, Math.min(100, Math.round(numericValue)));
+  }
+
+  const normalized = rawValue.trim().toLowerCase();
+  if (["full", "well stocked", "high"].includes(normalized)) return 100;
+  if (["moderate", "medium", "partial"].includes(normalized)) return 50;
+  if (["low", "limited"].includes(normalized)) return 25;
+  if (["empty", "none", "out"].includes(normalized)) return 0;
+
+  return undefined;
+}
+
+function deriveSupplyLevel(supplyPercent?: number, fallback?: string): string | undefined {
+  if (fallback) return fallback;
+  if (typeof supplyPercent !== "number") return undefined;
+  if (supplyPercent >= 80) return "full";
+  if (supplyPercent >= 55) return "moderate";
+  if (supplyPercent > 0) return "low";
+  return "empty";
+}
+
 export function normalizeFoodBanks(elements: OverpassElement[]): FoodBank[] {
   const seen = new Set<string>();
   const foodBanks: FoodBank[] = [];
@@ -34,6 +60,13 @@ export function normalizeFoodBanks(elements: OverpassElement[]): FoodBank[] {
 
     seen.add(id);
     const tags = element.tags ?? {};
+    const supplyPercent = normalizeSupplyPercent(
+      tags.supply_percent || tags["supply:percent"] || tags["food_bank:supply_percent"] || tags["supply"]
+    );
+    const supplyLevel = deriveSupplyLevel(
+      supplyPercent,
+      tags.supply_level || tags["supply:level"] || tags["food_bank:supply_level"]
+    );
     foodBanks.push({
       id,
       name: tags.name || "Unnamed Food Bank",
@@ -43,7 +76,8 @@ export function normalizeFoodBanks(elements: OverpassElement[]): FoodBank[] {
       phone: tags.phone || tags["contact:phone"],
       website: tags.website || tags["contact:website"],
       openingHours: tags.opening_hours,
-      supplyLevel: tags.supply_level || tags["supply:level"] || tags.supply || tags["food_bank:supply_level"],
+      supplyPercent,
+      supplyLevel,
     });
   }
 
