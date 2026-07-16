@@ -7,6 +7,7 @@ export type FoodBank = {
   phone?: string;
   website?: string;
   openingHours?: string;
+  supplyPoundsThousands?: number;
   supplyPercent?: number;
   supplyLevel?: string;
 };

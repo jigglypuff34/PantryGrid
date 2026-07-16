@@ -79,6 +79,17 @@ main { min-height: 100vh; }
 .custom-marker { background: none; border: none; }
 .pantry-pin { display: grid; place-items: center; width: 34px; height: 34px; color: #fff; background: var(--green); border: 3px solid #fff; border-radius: 50% 50% 50% 10%; box-shadow: 0 3px 9px #183a3470; transform: rotate(-45deg); }
 .pantry-pin span { transform: rotate(45deg); font-size: 20px; font-weight: 800; }
+.supply-marker { background: none; border: none; }
+.supply-pin { display: grid; place-items: center; width: 34px; height: 34px; border: 3px solid #fff; border-radius: 50% 50% 50% 10%; box-shadow: 0 3px 9px #183a3470; transform: rotate(-45deg); }
+.supply-pin span { transform: rotate(45deg); font-size: 18px; font-weight: 900; line-height: 1; }
+.supply-full .supply-pin { background: #1f6f41; }
+.supply-empty .supply-pin { background: #c64538; }
+.supply-mid .supply-pin { background: #c37b18; }
+.supply-unknown .supply-pin { background: #7a8a86; }
+.supply-full .supply-pin span,
+.supply-mid .supply-pin span,
+.supply-unknown .supply-pin span { color: #fff; }
+.supply-empty .supply-pin span { color: #fff; }
 .search-pin { display: grid; place-items: center; width: 30px; height: 30px; border: 3px solid #fff; border-radius: 50%; background: #e2993e; box-shadow: 0 0 0 3px #e2993e55, 0 3px 10px #263a3766; }
 .search-pin span { width: 7px; height: 7px; border-radius: 50%; background: #fff; }
 .popup-content { display: flex; flex-direction: column; gap: 6px; min-width: 210px; color: #263d38; }

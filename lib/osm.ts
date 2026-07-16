@@ -37,6 +37,18 @@ function normalizeSupplyPercent(rawValue?: string): number | undefined {
   return undefined;
 }
 
+function parseBankSizeThousands(rawValue?: string): number | undefined {
+  if (!rawValue) return undefined;
+
+  const cleanedValue = rawValue.trim().toLowerCase();
+  const numericValue = Number(cleanedValue.replace(/[^\d.]/g, ""));
+  if (!Number.isFinite(numericValue)) return undefined;
+
+  const isPounds = cleanedValue.includes("lb") || cleanedValue.includes("pound");
+  const thousandsValue = isPounds || numericValue > 1000 ? numericValue / 1000 : numericValue;
+  return Math.max(0, thousandsValue);
+}
+
 function deriveSupplyLevel(supplyPercent?: number, fallback?: string): string | undefined {
   if (fallback) return fallback;
   if (typeof supplyPercent !== "number") return undefined;
@@ -60,6 +72,9 @@ export function normalizeFoodBanks(elements: OverpassElement[]): FoodBank[] {
 
     seen.add(id);
     const tags = element.tags ?? {};
+    const supplyPoundsThousands = parseBankSizeThousands(
+      tags["food_bank:capacity"] || tags["food_bank:supply_pounds"] || tags["supply_pounds"] || tags.capacity || tags["capacity:pounds"]
+    );
     const supplyPercent = normalizeSupplyPercent(
       tags.supply_percent || tags["supply:percent"] || tags["food_bank:supply_percent"] || tags["supply"]
     );
@@ -76,6 +91,7 @@ export function normalizeFoodBanks(elements: OverpassElement[]): FoodBank[] {
       phone: tags.phone || tags["contact:phone"],
       website: tags.website || tags["contact:website"],
       openingHours: tags.opening_hours,
+      supplyPoundsThousands,
       supplyPercent,
       supplyLevel,
     });

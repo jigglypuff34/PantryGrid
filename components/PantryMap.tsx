@@ -5,14 +5,6 @@ import { Circle, MapContainer, Marker, Popup, Polyline, TileLayer, useMap } from
 import { useEffect, useRef } from "react";
 import type { FoodBank, SearchLocation, TruckRoute } from "@/lib/types";
 
-const pantryIcon = L.divIcon({
-  className: "custom-marker",
-  html: '<div class="pantry-pin"><span>+</span></div>',
-  iconSize: [34, 42],
-  iconAnchor: [17, 42],
-  popupAnchor: [0, -38],
-});
-
 const searchIcon = L.divIcon({
   className: "custom-marker",
   html: '<div class="search-pin"><span></span></div>',
@@ -55,10 +47,26 @@ function getSupplyTone(bank: FoodBank): "full" | "empty" | "mid" | "unknown" {
   return "unknown";
 }
 
+function createSupplyIcon(bank: FoodBank) {
+  const tone = getSupplyTone(bank);
+  return L.divIcon({
+    className: `custom-marker supply-marker supply-${tone}`,
+    html: '<div class="supply-pin"><span>♥</span></div>',
+    iconSize: [34, 42],
+    iconAnchor: [17, 42],
+    popupAnchor: [0, -38],
+  });
+}
+
 function renderSupplyLabel(bank: FoodBank) {
   if (typeof bank.supplyPercent === "number" && bank.supplyLevel) return `${bank.supplyPercent}% ${bank.supplyLevel}`;
   if (typeof bank.supplyPercent === "number") return `${bank.supplyPercent}%`;
   return bank.supplyLevel ?? "unknown";
+}
+
+function renderEstimatedSize(bank: FoodBank) {
+  if (typeof bank.supplyPoundsThousands !== "number") return null;
+  return `${bank.supplyPoundsThousands.toFixed(0)} thousand pounds`;
 }
 
 export default function PantryMap({ foodBanks, location, radiusMiles, truckRoutes, selectedId, onSelect }: {
@@ -101,11 +109,12 @@ export default function PantryMap({ foodBanks, location, radiusMiles, truckRoute
       {foodBanks.map((bank) => {
         const website = bank.website ? safeWebsiteUrl(bank.website) : null;
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${bank.latitude},${bank.longitude}`;
+        const supplyIcon = createSupplyIcon(bank);
         return (
           <Marker
             key={bank.id}
             position={[bank.latitude, bank.longitude]}
-            icon={pantryIcon}
+            icon={supplyIcon}
             ref={(marker) => {
               if (marker) markerRefs.current.set(bank.id, marker);
               else markerRefs.current.delete(bank.id);
@@ -121,6 +130,9 @@ export default function PantryMap({ foodBanks, location, radiusMiles, truckRoute
                     <span className="supply-heart" aria-hidden="true">♥</span>
                     <b>Supply:</b> {renderSupplyLabel(bank)}
                   </span>
+                )}
+                {renderEstimatedSize(bank) && (
+                  <span className="popup-estimate"><b>Estimated size:</b> {renderEstimatedSize(bank)}</span>
                 )}
                 {bank.phone && <a href={`tel:${bank.phone}`}>{bank.phone}</a>}
                 {bank.openingHours && <span><b>Hours:</b> {bank.openingHours}</span>}

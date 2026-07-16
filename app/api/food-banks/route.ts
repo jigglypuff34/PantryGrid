@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { normalizeFoodBanks } from "@/lib/osm";
 import { distanceInMiles } from "@/lib/distance";
 import type { FoodBank } from "@/lib/types";
+import { calculateSupplyPercent, deriveSupplyLevel, estimateBankSizeThousands } from "@/lib/supply";
+import { getSurroundingPopulation } from "@/lib/census";
 
 const USER_AGENT = "PantryGrid-Hackathon-MVP/1.0 (+https://github.com/pantrygrid)";
 const ALLOWED_RADII = new Set([25, 50, 75]);
-const FOOD_BANK_CACHE_SCHEMA = "v3";
+const FOOD_BANK_CACHE_SCHEMA = "v4";
 const FOOD_BANK_TTL_SECONDS = 7 * 24 * 60 * 60;
 const MAX_IN_FLIGHT = 100;
 const OVERPASS_ENDPOINTS = [
@@ -84,9 +86,19 @@ const getCachedFoodBanks = unstable_cache(
 
     try {
       const data = await queryOverpass(query);
-      const foodBanks = normalizeFoodBanks(data.elements).filter((foodBank) =>
-        distanceInMiles({ latitude, longitude }, foodBank) <= radiusMiles
-      );
+      const surroundingPopulation = await getSurroundingPopulation(latitude, longitude);
+      const foodBanks = normalizeFoodBanks(data.elements)
+        .filter((foodBank) => distanceInMiles({ latitude, longitude }, foodBank) <= radiusMiles)
+        .map((foodBank) => {
+          const supplyPoundsThousands = estimateBankSizeThousands(foodBank);
+          const supplyPercent = calculateSupplyPercent(supplyPoundsThousands, surroundingPopulation);
+          return {
+            ...foodBank,
+            supplyPoundsThousands,
+            supplyPercent,
+            supplyLevel: deriveSupplyLevel(supplyPercent),
+          };
+        });
       return { foodBanks, cachedAt: Date.now() };
     } finally {
       logDevelopment("Overpass requested", {
