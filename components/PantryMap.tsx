@@ -2,7 +2,7 @@
 
 import L from "leaflet";
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { FoodBank, SearchLocation } from "@/lib/types";
 
 const pantryIcon = L.divIcon({
@@ -46,11 +46,15 @@ function safeWebsiteUrl(website: string): string | null {
   }
 }
 
-export default function PantryMap({ foodBanks, location, radiusMiles }: {
+export default function PantryMap({ foodBanks, location, radiusMiles, selectedId, onSelect }: {
   foodBanks: FoodBank[];
   location: SearchLocation | null;
   radiusMiles: number;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
+  const markerRefs = useRef(new Map<string, L.Marker>());
+
   return (
     <MapContainer center={[39.5, -98.35]} zoom={4} scrollWheelZoom className="map">
       <TileLayer
@@ -58,6 +62,7 @@ export default function PantryMap({ foodBanks, location, radiusMiles }: {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitResults foodBanks={foodBanks} location={location} />
+      <SelectedMarker foodBanks={foodBanks} selectedId={selectedId} markerRefs={markerRefs} />
       {location && (
         <>
           <Circle
@@ -74,7 +79,16 @@ export default function PantryMap({ foodBanks, location, radiusMiles }: {
         const website = bank.website ? safeWebsiteUrl(bank.website) : null;
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${bank.latitude},${bank.longitude}`;
         return (
-          <Marker key={bank.id} position={[bank.latitude, bank.longitude]} icon={pantryIcon}>
+          <Marker
+            key={bank.id}
+            position={[bank.latitude, bank.longitude]}
+            icon={pantryIcon}
+            ref={(marker) => {
+              if (marker) markerRefs.current.set(bank.id, marker);
+              else markerRefs.current.delete(bank.id);
+            }}
+            eventHandlers={{ click: () => onSelect(bank.id) }}
+          >
             <Popup>
               <div className="popup-content">
                 <strong>{bank.name}</strong>
@@ -92,4 +106,22 @@ export default function PantryMap({ foodBanks, location, radiusMiles }: {
       })}
     </MapContainer>
   );
+}
+
+function SelectedMarker({ foodBanks, selectedId, markerRefs }: {
+  foodBanks: FoodBank[];
+  selectedId: string | null;
+  markerRefs: React.RefObject<Map<string, L.Marker>>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const bank = foodBanks.find((candidate) => candidate.id === selectedId);
+    if (!bank) return;
+    map.setView([bank.latitude, bank.longitude], Math.max(map.getZoom(), 13), { animate: true });
+    markerRefs.current.get(selectedId)?.openPopup();
+  }, [foodBanks, map, markerRefs, selectedId]);
+
+  return null;
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import type { FoodBank, SearchLocation } from "@/lib/types";
+import { distanceInMiles } from "@/lib/distance";
+import FoodBankResults, { type FoodBankResult } from "./FoodBankResults";
 
 const PantryMap = dynamic(() => import("./PantryMap"), {
   ssr: false,
@@ -17,6 +19,14 @@ export default function PantryFinder() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const sortedFoodBanks = useMemo<FoodBankResult[]>(() => {
+    if (!location) return [];
+    return foodBanks
+      .map((bank) => ({ ...bank, distanceMiles: distanceInMiles(location, bank) }))
+      .sort((first, second) => first.distanceMiles - second.distanceMiles);
+  }, [foodBanks, location]);
 
   async function search(event: FormEvent) {
     event.preventDefault();
@@ -29,6 +39,7 @@ export default function PantryFinder() {
     setLoading(true);
     setError("");
     setHasSearched(false);
+    setSelectedId(null);
 
     try {
       const geocodeResponse = await fetch(`/api/geocode?q=${encodeURIComponent(trimmedQuery)}`);
@@ -109,14 +120,27 @@ export default function PantryFinder() {
           <span className="data-label">OpenStreetMap data</span>
         </div>
 
-        <div id="search-status" className="status" aria-live="polite">
-          {error && <div className="error"><strong>We couldn’t complete that search.</strong> {error}</div>}
-          {!error && hasSearched && foodBanks.length === 0 && (
-            <div className="no-results"><strong>No food banks found in this area.</strong> Try a larger radius or nearby city.</div>
-          )}
-        </div>
+        <span id="search-status" className="sr-only" aria-live="polite">
+          {loading ? "Loading food banks" : error || (hasSearched ? `${foodBanks.length} food banks found` : "")}
+        </span>
 
-        <PantryMap foodBanks={foodBanks} location={location} radiusMiles={radius} />
+        <div className="map-results-layout">
+          <PantryMap
+            foodBanks={sortedFoodBanks}
+            location={location}
+            radiusMiles={radius}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+          <FoodBankResults
+            foodBanks={sortedFoodBanks}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            loading={loading}
+            error={error}
+            hasSearched={hasSearched}
+          />
+        </div>
       </section>
 
       <footer>PantryGrid is a prototype. Always confirm hours and services directly with the organization.</footer>
