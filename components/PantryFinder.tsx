@@ -74,7 +74,7 @@ export default function PantryFinder() {
           <div className="brand-mark" aria-hidden="true"><span /><span /><span /><span /></div>
           <h1>PantryGrid</h1>
         </div>
-        <p>Find nearby food banks and food pantries using community-powered map data.</p>
+        <p>Find nearby food banks and food pantries using community map data.</p>
 
         <form className="search-panel" onSubmit={search}>
           <label className="location-field">
