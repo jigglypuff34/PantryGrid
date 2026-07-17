@@ -77,7 +77,7 @@ function AnimatedTruckMarker({ route }: { route: TruckRoute }) {
     if (path.length <= 1) return;
     const timer = window.setInterval(() => {
       setProgressIndex((currentIndex) => (currentIndex >= path.length - 1 ? currentIndex : currentIndex + 1));
-    }, 70);
+    }, 95);
     return () => window.clearInterval(timer);
   }, [path]);
 
